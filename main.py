@@ -1,4 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pdf_utils import load_pdf
 from rag import chunk_text, create_embedding, create_faiss_index, embed_query, search, save_index
@@ -8,6 +10,12 @@ import uuid
 import os
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def root():
+    return FileResponse("static/index.html")
+
 documents = {}
 log=get_logger("main")
 

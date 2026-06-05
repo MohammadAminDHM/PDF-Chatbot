@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Chatbot</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      width: 100%;
+      max-width: 720px;
+      overflow: hidden;
+    }
+
+    .header {
+      background: #1F3A6E;
+      padding: 24px 32px;
+      color: white;
+    }
+
+    .header h1 { font-size: 22px; font-weight: 600; }
+    .header p  { font-size: 14px; opacity: 0.7; margin-top: 4px; }
+
+    .body { padding: 32px; }
+
+    /* Upload */
+    .upload-area {
+      border: 2px dashed #CBD5E1;
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #F8FAFC;
+    }
+    .upload-area:hover { border-color: #1F3A6E; background: #EEF2FF; }
+    .upload-area.active { border-color: #1D9E75; background: #E8F5EE; }
+
+    .upload-icon { font-size: 36px; margin-bottom: 12px; }
+    .upload-text { font-size: 15px; color: #475569; }
+    .upload-text span { color: #1F3A6E; font-weight: 500; cursor: pointer; }
+    .upload-sub { font-size: 13px; color: #94A3B8; margin-top: 6px; }
+
+    input[type="file"] { display: none; }
+
+    /* Status */
+    .status {
+      margin-top: 16px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: none;
+    }
+    .status.loading { background: #EEF2FF; color: #3730A3; display: block; }
+    .status.success { background: #E8F5EE; color: #1D6A3A; display: block; }
+    .status.error   { background: #FEE2E2; color: #991B1B; display: block; }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: #E2E8F0;
+      margin: 28px 0;
+    }
+
+    /* Question */
+    .question-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 10px;
+    }
+
+    .question-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .question-row input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .question-row input:focus { border-color: #1F3A6E; }
+    .question-row input:disabled { background: #F8FAFC; cursor: not-allowed; }
+
+    .btn {
+      padding: 12px 20px;
+      background: #1F3A6E;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) { background: #2E5C9E; }
+    .btn:disabled { background: #CBD5E1; cursor: not-allowed; }
+
+    /* Answer */
+    .answer-box {
+      margin-top: 24px;
+      display: none;
+    }
+
+    .answer-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #94A3B8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 10px;
+    }
+
+    .answer-text {
+      background: #F8FAFC;
+      border-radius: 10px;
+      padding: 18px 20px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #1E293B;
+      border-left: 3px solid #1F3A6E;
+    }
+
+    .sources {
+      margin-top: 14px;
+    }
+
+    .sources-label {
+      font-size: 13px;
+      color: #94A3B8;
+      margin-bottom: 8px;
+    }
+
+    .source-chip {
+      display: inline-block;
+      background: #EEF2FF;
+      color: #3730A3;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin: 3px 4px 3px 0;
+    }
+
+    .thinking {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #94A3B8;
+      font-size: 14px;
+      margin-top: 20px;
+    }
+
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #94A3B8;
+      animation: bounce 1.2s infinite;
+    }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>PDF Chatbot</h1>
+      <p>Upload a PDF and ask questions about it</p>
+    </div>
+
+    <div class="body">
+      <!-- Upload -->
+      <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-icon">📄</div>
+        <div class="upload-text">Drop your PDF here or <span>browse</span></div>
+        <div class="upload-sub">Only PDF files are supported</div>
+      </div>
+      <input type="file" id="fileInput" accept=".pdf" onchange="uploadPDF(this)">
+      <div class="status" id="status"></div>
+
+      <div class="divider"></div>
+
+      <!-- Question -->
+      <div class="question-label">Ask a question</div>
+      <div class="question-row">
+        <input type="text" id="questionInput" placeholder="Upload a PDF first..." disabled onkeydown="if(event.key==='Enter') askQuestion()">
+        <button class="btn" id="askBtn" onclick="askQuestion()" disabled>Ask</button>
+      </div>
+
+      <!-- Answer -->
+      <div class="answer-box" id="answerBox">
+        <div class="answer-label">Answer</div>
+        <div class="answer-text" id="answerText"></div>
+        <div class="sources" id="sources"></div>
+      </div>
+
+      <div class="thinking" id="thinking" style="display:none">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        <span>Thinking...</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let docId = null;
+
+    async function uploadPDF(input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      const status = document.getElementById('status');
+      const area   = document.getElementById('uploadArea');
+
+      status.className = 'status loading';
+      status.textContent = `Uploading ${file.name}...`;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res  = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.detail || 'Upload failed');
+
+        docId = data.doc_id;
+        area.classList.add('active');
+        status.className = 'status success';
+        status.textContent = `✓ ${data.filename} uploaded — ${data.chunks} chunks ready`;
+
+        document.getElementById('questionInput').disabled = false;
+        document.getElementById('questionInput').placeholder = 'Ask anything about the document...';
+        document.getElementById('askBtn').disabled = false;
+        document.getElementById('questionInput').focus();
+
+      } catch (err) {
+        status.className = 'status error';
+        status.textContent = `✗ ${err.message}`;
+      }
+    }
+
+    async function askQuestion() {
+      const input   = document.getElementById('questionInput');
+      const question = input.value.trim();
+      if (!question || !docId) return;
+
+      document.getElementById('answerBox').style.display = 'none';
+      document.getElementById('thinking').style.display = 'flex';
+      document.getElementById('askBtn').disabled = true;
+
+      try {
+        const res  = await fetch(`/ask/${docId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question })
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.detail || 'Error');
+
+        document.getElementById('answerText').textContent = data.answer;
+
+        // نمایش منابع
+        const pages = [...new Set(data.sources.map(s => s.page))].sort((a,b) => a-b);
+        const sourcesEl = document.getElementById('sources');
+        sourcesEl.innerHTML = '<div class="sources-label">Sources</div>' +
+          pages.map(p => `<span class="source-chip">Page ${p}</span>`).join('');
+
+        document.getElementById('answerBox').style.display = 'block';
+
+      } catch (err) {
+        document.getElementById('answerText').textContent = 'Error: ' + err.message;
+        document.getElementById('answerBox').style.display = 'block';
+      } finally {
+        document.getElementById('thinking').style.display = 'none';
+        document.getElementById('askBtn').disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
